@@ -1,4 +1,7 @@
 
+*& zma_fi_report.
+*& Description: Vendor Financial Report
+
 REPORT zma_fi_report.
 
 TYPE-POOLS: slis.
@@ -9,7 +12,8 @@ TABLES: lfa1, bsik, bkpf.
 * SELECTION SCREEN
 *---------------------------------------------------------------------*
 
-SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-001.
+SELECTION-SCREEN BEGIN OF BLOCK b1
+  WITH FRAME TITLE TEXT-001.
 
 SELECT-OPTIONS:
   s_bukrs FOR bsik-bukrs,
@@ -18,7 +22,7 @@ SELECT-OPTIONS:
 
 PARAMETERS:
   p_open  AS CHECKBOX DEFAULT 'X',
-  p_clear AS CHECKBOX DEFAULT 'X'.
+  p_close AS CHECKBOX DEFAULT 'X'.
 
 SELECTION-SCREEN END OF BLOCK b1.
 
@@ -26,7 +30,7 @@ SELECTION-SCREEN END OF BLOCK b1.
 * TYPES
 *---------------------------------------------------------------------*
 
-TYPES: BEGIN OF ty_vendor,
+TYPES: BEGIN OF str_vendor,
 
          status     TYPE char10,
          line_color TYPE char4,
@@ -49,16 +53,16 @@ TYPES: BEGIN OF ty_vendor,
          wrbtr      TYPE bsik-wrbtr,
          waers      TYPE bkpf-waers,
 
-       END OF ty_vendor.
+       END OF str_vendor.
 
-TYPES tt_vendor TYPE STANDARD TABLE OF ty_vendor
+TYPES it_vendor TYPE STANDARD TABLE OF str_vendor
                 WITH DEFAULT KEY.
 
 *---------------------------------------------------------------------*
 * CLASS DEFINITION
 *---------------------------------------------------------------------*
 
-CLASS lcl_vendor_report DEFINITION.
+CLASS vender DEFINITION.
 
   PUBLIC SECTION.
 
@@ -69,16 +73,16 @@ CLASS lcl_vendor_report DEFINITION.
   PRIVATE SECTION.
 
     DATA:
-      gt_data     TYPE tt_vendor,
-      gt_temp     TYPE tt_vendor,
-      gt_fieldcat TYPE slis_t_fieldcat_alv,
-      gs_layout   TYPE slis_layout_alv.
+      it_data     TYPE it_vendor,
+      it_temp     TYPE it_vendor,
+      it_fieldcat TYPE slis_t_fieldcat_alv,
+      wa_layout   TYPE slis_layout_alv.
 
     METHODS:
       get_open_items,
-      get_cleared_items,
-      build_fieldcat,
-      prepare_layout.
+      get_cleard_items,
+      bulid_fieldcat,
+      layout.
 
 ENDCLASS.
 
@@ -86,7 +90,7 @@ ENDCLASS.
 * CLASS IMPLEMENTATION
 *---------------------------------------------------------------------*
 
-CLASS lcl_vendor_report IMPLEMENTATION.
+CLASS vender IMPLEMENTATION.
 
 *---------------------------------------------------------------------*
 * GET DATA
@@ -94,14 +98,14 @@ CLASS lcl_vendor_report IMPLEMENTATION.
 
   METHOD get_data.
 
-    CLEAR gt_data.
+    CLEAR it_data.
 
     IF p_open = 'X'.
       get_open_items( ).
     ENDIF.
 
-    IF p_clear = 'X'.
-      get_cleared_items( ).
+    IF p_close = 'X'.
+      get_cleard_items( ).
     ENDIF.
 
   ENDMETHOD.
@@ -112,7 +116,7 @@ CLASS lcl_vendor_report IMPLEMENTATION.
 
   METHOD get_open_items.
 
-    CLEAR gt_temp.
+    CLEAR it_temp.
 
     SELECT
       a~bukrs,
@@ -143,9 +147,9 @@ CLASS lcl_vendor_report IMPLEMENTATION.
         AND a~lifnr IN @s_lifnr
         AND c~budat IN @s_budat
 
-      INTO CORRESPONDING FIELDS OF TABLE @gt_temp.
+      INTO CORRESPONDING FIELDS OF TABLE @it_temp.
 
-    LOOP AT gt_temp ASSIGNING FIELD-SYMBOL(<fs>).
+    LOOP AT it_temp ASSIGNING FIELD-SYMBOL(<fs>).
 
       <fs>-status = 'OPEN'.
 
@@ -155,7 +159,7 @@ CLASS lcl_vendor_report IMPLEMENTATION.
 
     ENDLOOP.
 
-    APPEND LINES OF gt_temp TO gt_data.
+    APPEND LINES OF it_temp TO it_data.
 
   ENDMETHOD.
 
@@ -163,9 +167,9 @@ CLASS lcl_vendor_report IMPLEMENTATION.
 * GET CLEARED ITEMS
 *---------------------------------------------------------------------*
 
-  METHOD get_cleared_items.
+  METHOD get_cleard_items.
 
-    CLEAR gt_temp.
+    CLEAR it_temp.
 
     SELECT
       a~bukrs,
@@ -196,9 +200,9 @@ CLASS lcl_vendor_report IMPLEMENTATION.
         AND a~lifnr IN @s_lifnr
         AND c~budat IN @s_budat
 
-      INTO CORRESPONDING FIELDS OF TABLE @gt_temp.
+      INTO CORRESPONDING FIELDS OF TABLE @it_temp.
 
-    LOOP AT gt_temp ASSIGNING FIELD-SYMBOL(<fs>).
+    LOOP AT it_temp ASSIGNING FIELD-SYMBOL(<fs>).
 
       <fs>-status = 'CLEARED'.
 
@@ -208,7 +212,7 @@ CLASS lcl_vendor_report IMPLEMENTATION.
 
     ENDLOOP.
 
-    APPEND LINES OF gt_temp TO gt_data.
+    APPEND LINES OF it_temp TO it_data.
 
   ENDMETHOD.
 
@@ -216,21 +220,21 @@ CLASS lcl_vendor_report IMPLEMENTATION.
 * BUILD FIELD CATALOG
 *---------------------------------------------------------------------*
 
-  METHOD build_fieldcat.
+  METHOD bulid_fieldcat.
 
-    CLEAR gt_fieldcat.
+    CLEAR it_fieldcat.
 
-    DATA ls_fieldcat TYPE slis_fieldcat_alv.
+    DATA wa_fieldcat TYPE slis_fieldcat_alv.
 
     DEFINE add_column.
 
-      CLEAR ls_fieldcat.
+      CLEAR wa_fieldcat.
 
-      ls_fieldcat-fieldname = &1.
-      ls_fieldcat-seltext_m = &2.
-      ls_fieldcat-outputlen = &3.
+      wa_fieldcat-fieldname = &1.
+      wa_fieldcat-seltext_m = &2.
+      wa_fieldcat-outputlen = &3.
 
-      APPEND ls_fieldcat TO gt_fieldcat.
+      APPEND wa_fieldcat TO it_fieldcat.
 
     END-OF-DEFINITION.
 
@@ -240,7 +244,7 @@ CLASS lcl_vendor_report IMPLEMENTATION.
     add_column 'NAME1'   'Vendor Name'    25.
     add_column 'BELNR'   'Document'       15.
     add_column 'GJAHR'   'Fiscal Year'    10.
-    add_column 'BUZEI'   'Item'            8.
+    add_column 'BUZEI'   'Item'             8.
     add_column 'BLART'   'Doc Type'       10.
     add_column 'BLDAT'   'Doc Date'       12.
     add_column 'BUDAT'   'Posting Date'   12.
@@ -249,9 +253,7 @@ CLASS lcl_vendor_report IMPLEMENTATION.
     add_column 'WRBTR'   'Amount'         15.
     add_column 'WAERS'   'Currency'       10.
 
-    "Currency Reference
-
-    READ TABLE gt_fieldcat
+    READ TABLE it_fieldcat
       ASSIGNING FIELD-SYMBOL(<fc>)
       WITH KEY fieldname = 'WRBTR'.
 
@@ -262,24 +264,17 @@ CLASS lcl_vendor_report IMPLEMENTATION.
   ENDMETHOD.
 
 *---------------------------------------------------------------------*
-* PREPARE LAYOUT
+* LAYOUT
 *---------------------------------------------------------------------*
 
-  METHOD prepare_layout.
+  METHOD layout.
 
-    CLEAR gs_layout.
+    CLEAR wa_layout.
 
-    "Specify Row Color Field
+    wa_layout-info_fieldname = 'LINE_COLOR'.
+    wa_layout-colwidth_optimize = 'X'.
 
-    gs_layout-info_fieldname = 'LINE_COLOR'.
-
-    "Automatically Optimize Column Width
-
-    gs_layout-colwidth_optimize = 'X'.
-
-    "Loop Through ALV Data
-
-    LOOP AT gt_data ASSIGNING FIELD-SYMBOL(<fs>).
+    LOOP AT it_data ASSIGNING FIELD-SYMBOL(<fs>).
 
       IF <fs>-status = 'OPEN'.
 
@@ -301,34 +296,27 @@ CLASS lcl_vendor_report IMPLEMENTATION.
 
   METHOD display_alv.
 
-    IF gt_data IS INITIAL.
+    IF it_data IS INITIAL.
 
       MESSAGE 'No data found' TYPE 'I'.
       RETURN.
 
     ENDIF.
 
-    "Build Field Catalog
+    bulid_fieldcat( ).
 
-    build_fieldcat( ).
-
-    "Prepare Layout
-
-    prepare_layout( ).
-
-    "Display ALV
+    layout( ).
 
     CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+
       EXPORTING
-        i_callback_program      = sy-repid
-        it_fieldcat             = gt_fieldcat
-        is_layout               = gs_layout
-        i_callback_top_of_page  = 'TOP_OF_PAGE'
+        i_callback_program       = sy-repid
+        i_callback_top_of_page   = 'TOP_OF_PAGE'
+        is_layout                = wa_layout
+        it_fieldcat              = it_fieldcat
+
       TABLES
-        t_outtab                = gt_data
-      EXCEPTIONS
-        program_error           = 1
-        OTHERS                  = 2.
+        t_outtab                 = it_data.
 
     IF sy-subrc <> 0.
 
@@ -350,7 +338,7 @@ FORM top_of_page.
     it_listheader TYPE slis_t_listheader,
     wa_listheader TYPE slis_listheader.
 
-  "Report Title
+  CLEAR wa_listheader.
 
   wa_listheader-typ = 'H'.
   wa_listheader-info = 'VENDOR FINANCIAL REPORT'.
@@ -359,22 +347,19 @@ FORM top_of_page.
 
   CLEAR wa_listheader.
 
-  "Current Date
-
   wa_listheader-typ = 'S'.
   wa_listheader-key = 'DATE'.
 
   CONCATENATE sy-datum+6(2)
               sy-datum+4(2)
               sy-datum(4)
-    INTO wa_listheader-info
-    SEPARATED BY '/'.
+         INTO wa_listheader-info
+         SEPARATED BY '/'.
 
   APPEND wa_listheader TO it_listheader.
 
-  "Display Header
-
   CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+
     EXPORTING
       it_list_commentary = it_listheader.
 
@@ -386,10 +371,10 @@ ENDFORM.
 
 START-OF-SELECTION.
 
-  DATA go_report TYPE REF TO lcl_vendor_report.
+  DATA lo_obj TYPE REF TO vender.
 
-  CREATE OBJECT go_report.
+  CREATE OBJECT lo_obj.
 
-  go_report->get_data( ).
+  lo_obj->get_data( ).
 
-  go_report->display_alv( ).
+  lo_obj->display_alv( ).
