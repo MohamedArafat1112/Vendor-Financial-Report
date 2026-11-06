@@ -1,8 +1,10 @@
+*&---------------------------------------------------------------------*
+*& Report ZMA_FI_REPORT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZMA_FI_REPORT.
 
-*& zma_fi_report.
-*& Description: Vendor Financial Report
-
-REPORT zma_fi_report.
 
 TYPE-POOLS: slis.
 
@@ -92,10 +94,6 @@ ENDCLASS.
 
 CLASS vender IMPLEMENTATION.
 
-*---------------------------------------------------------------------*
-* GET DATA
-*---------------------------------------------------------------------*
-
   METHOD get_data.
 
     CLEAR it_data.
@@ -115,6 +113,8 @@ CLASS vender IMPLEMENTATION.
 *---------------------------------------------------------------------*
 
   METHOD get_open_items.
+
+    DATA wa_temp TYPE str_vendor.
 
     CLEAR it_temp.
 
@@ -149,13 +149,15 @@ CLASS vender IMPLEMENTATION.
 
       INTO CORRESPONDING FIELDS OF TABLE @it_temp.
 
-    LOOP AT it_temp ASSIGNING FIELD-SYMBOL(<fs>).
+    LOOP AT it_temp INTO wa_temp.
 
-      <fs>-status = 'OPEN'.
+      wa_temp-status = 'OPEN'.
 
-      IF <fs>-shkzg = 'H'.
-        <fs>-wrbtr = <fs>-wrbtr * -1.
+      IF wa_temp-shkzg = 'H'.
+        wa_temp-wrbtr = wa_temp-wrbtr * -1.
       ENDIF.
+
+      MODIFY it_temp FROM wa_temp INDEX sy-tabix.
 
     ENDLOOP.
 
@@ -168,6 +170,8 @@ CLASS vender IMPLEMENTATION.
 *---------------------------------------------------------------------*
 
   METHOD get_cleard_items.
+
+    DATA wa_temp TYPE str_vendor.
 
     CLEAR it_temp.
 
@@ -202,13 +206,15 @@ CLASS vender IMPLEMENTATION.
 
       INTO CORRESPONDING FIELDS OF TABLE @it_temp.
 
-    LOOP AT it_temp ASSIGNING FIELD-SYMBOL(<fs>).
+    LOOP AT it_temp INTO wa_temp.
 
-      <fs>-status = 'CLEARED'.
+      wa_temp-status = 'CLEARED'.
 
-      IF <fs>-shkzg = 'H'.
-        <fs>-wrbtr = <fs>-wrbtr * -1.
+      IF wa_temp-shkzg = 'H'.
+        wa_temp-wrbtr = wa_temp-wrbtr * -1.
       ENDIF.
+
+      MODIFY it_temp FROM wa_temp INDEX sy-tabix.
 
     ENDLOOP.
 
@@ -222,9 +228,9 @@ CLASS vender IMPLEMENTATION.
 
   METHOD bulid_fieldcat.
 
-    CLEAR it_fieldcat.
-
     DATA wa_fieldcat TYPE slis_fieldcat_alv.
+
+    CLEAR it_fieldcat.
 
     DEFINE add_column.
 
@@ -254,11 +260,16 @@ CLASS vender IMPLEMENTATION.
     add_column 'WAERS'   'Currency'       10.
 
     READ TABLE it_fieldcat
-      ASSIGNING FIELD-SYMBOL(<fc>)
+      INTO wa_fieldcat
       WITH KEY fieldname = 'WRBTR'.
 
     IF sy-subrc = 0.
-      <fc>-cfieldname = 'WAERS'.
+
+      wa_fieldcat-cfieldname = 'WAERS'.
+
+      MODIFY it_fieldcat FROM wa_fieldcat
+        INDEX sy-tabix.
+
     ENDIF.
 
   ENDMETHOD.
@@ -269,22 +280,26 @@ CLASS vender IMPLEMENTATION.
 
   METHOD layout.
 
+    DATA wa_data TYPE str_vendor.
+
     CLEAR wa_layout.
 
     wa_layout-info_fieldname = 'LINE_COLOR'.
     wa_layout-colwidth_optimize = 'X'.
 
-    LOOP AT it_data ASSIGNING FIELD-SYMBOL(<fs>).
+    LOOP AT it_data INTO wa_data.
 
-      IF <fs>-status = 'OPEN'.
+      IF wa_data-status = 'OPEN'.
 
-        <fs>-line_color = 'C310'.
+        wa_data-line_color = 'C310'.
 
-      ELSEIF <fs>-status = 'CLEARED'.
+      ELSEIF wa_data-status = 'CLEARED'.
 
-        <fs>-line_color = 'C510'.
+        wa_data-line_color = 'C510'.
 
       ENDIF.
+
+      MODIFY it_data FROM wa_data INDEX sy-tabix.
 
     ENDLOOP.
 
